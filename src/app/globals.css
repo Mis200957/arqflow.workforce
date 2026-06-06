@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-navy: #0E2A47;
+  --color-brand-teal: #2A6072;
+  --color-brand-sky: #6BA0AC;
+  --color-brand-cream: #EEEDD2;
+  --font-sans: "Cairo", "Inter", system-ui, sans-serif;
+}
+
+:root {
+  --bg: #EEEDD2;
+  --bg-elev: #ffffff;
+  --fg: #0E2A47;
+  --fg-muted: #2A6072;
+  --border: rgba(14, 42, 71, 0.12);
+  --accent: #2A6072;
+  --accent-fg: #ffffff;
+  --ring: #6BA0AC;
+}
+
+.dark {
+  --bg: #0A1A2E;
+  --bg-elev: #112742;
+  --fg: #EEEDD2;
+  --fg-muted: #6BA0AC;
+  --border: rgba(238, 237, 210, 0.12);
+  --accent: #6BA0AC;
+  --accent-fg: #0E2A47;
+  --ring: #6BA0AC;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  min-height: 100vh;
+  font-feature-settings: "ss01", "cv01";
+}
+
+[dir="rtl"] body {
+  font-family: "Cairo", "Tajawal", system-ui, sans-serif;
+}
+
+[dir="ltr"] body {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+@layer utilities {
+  .bg-app {
+    background: var(--bg);
+  }
+  .bg-elev {
+    background: var(--bg-elev);
+  }
+  .text-app {
+    color: var(--fg);
+  }
+  .text-muted {
+    color: var(--fg-muted);
+  }
+  .border-app {
+    border-color: var(--border);
+  }
+  .ring-app {
+    --tw-ring-color: var(--ring);
+  }
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2A6072 0%, #6BA0AC 100%);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(42, 96, 114, 0.35);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-outline:hover {
+  background: var(--bg-elev);
+}
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+}
+
+.input-base {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-base:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(107, 160, 172, 0.25);
+}
+
+/* Hero grid background */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
