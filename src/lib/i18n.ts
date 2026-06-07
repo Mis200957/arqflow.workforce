@@ -34,7 +34,13 @@ type Dict = {
     submit: string;
     submitting: string;
     planLabel: string;
-    steps: { business: string; knowledge: string; behavior: string; review: string };
+    steps: {
+      business: string;
+      operations: string;
+      knowledge: string;
+      behavior: string;
+      review: string;
+    };
     fields: {
       businessName: string;
       businessNamePh: string;
@@ -42,8 +48,34 @@ type Dict = {
       businessTypePh: string;
       goal: string;
       goalPh: string;
+      workingHours: string;
+      workingHoursPh: string;
+      location: string;
+      locationPh: string;
+      paymentMethods: string;
+      paymentMethodsHint: string;
+      paymentOptions: {
+        cash: string;
+        visa: string;
+        instapay: string;
+        fawry: string;
+        wallet: string;
+        bank: string;
+      };
       knowledge: string;
       knowledgePh: string;
+      policy: string;
+      policyPh: string;
+      productsServices: string;
+      productsServicesHint: string;
+      productAdd: string;
+      productName: string;
+      productNamePh: string;
+      productPrice: string;
+      productPricePh: string;
+      productDesc: string;
+      productDescPh: string;
+      remove: string;
       files: string;
       filesHint: string;
       extracting: string;
@@ -123,20 +155,48 @@ export const translations: Record<Locale, Dict> = {
       planLabel: "الخطة المختارة",
       steps: {
         business: "بيانات نشاطك",
+        operations: "ساعات العمل والدفع",
         knowledge: "قاعدة المعرفة",
         behavior: "طريقة الرد",
         review: "مراجعة",
       },
       fields: {
         businessName: "اسم النشاط",
-        businessNamePh: "مثال: مطعم الشمس",
+        businessNamePh: "مثال: مطعم الذواق",
         businessType: "نوع النشاط",
         businessTypePh: "مطعم، عيادة، محل ملابس...",
         goal: "الهدف الأساسي للبوت",
         goalPh: "الرد على استفسارات، حجز مواعيد، بيع منتجات...",
+        workingHours: "ساعات العمل",
+        workingHoursPh: "مثال: 10ص - 12م يوميًا (الجمعة إجازة)",
+        location: "العنوان / الموقع",
+        locationPh: "مثال: المهندسين، شارع جامعة الدول العربية",
+        paymentMethods: "وسائل الدفع المتاحة",
+        paymentMethodsHint: "اختار كل وسائل الدفع اللي بتقبلها",
+        paymentOptions: {
+          cash: "كاش",
+          visa: "فيزا / ماستركارد",
+          instapay: "InstaPay",
+          fawry: "فوري",
+          wallet: "محفظة موبايل",
+          bank: "تحويل بنكي",
+        },
         knowledge: "بيانات قاعدة المعرفة",
         knowledgePh:
-          "اكتب أي معلومات عن نشاطك — أسعار، خدمات، سياسات، عناوين، أرقام تواصل...",
+          "اكتب أي معلومات عن نشاطك — خدمات، عروض، عناوين فروع، روابط مواقع، تفاصيل تواصل...",
+        policy: "سياسات النشاط (إلغاء / استرجاع / حجز)",
+        policyPh: "مثال: الإلغاء قبل ساعة من الموعد مجاني، بعد كده 50% خصم...",
+        productsServices: "المنتجات / الخدمات",
+        productsServicesHint:
+          "اكتب أهم المنتجات أو الخدمات اللي بتقدمها بسعرها — البوت هيستخدمها في الرد",
+        productAdd: "+ إضافة منتج / خدمة",
+        productName: "الاسم",
+        productNamePh: "مثال: بيتزا مارجريتا",
+        productPrice: "السعر",
+        productPricePh: "مثال: 150 جنيه",
+        productDesc: "وصف مختصر",
+        productDescPh: "مكونات، أحجام، تفاصيل إضافية...",
+        remove: "حذف",
         files: "ارفع ملفات (PDF, Word) — اختياري",
         filesHint: "هنستخرج النص من الملفات أوتوماتيك ونضيفه لقاعدة المعرفة",
         extracting: "جاري استخراج النص...",
@@ -149,7 +209,7 @@ export const translations: Record<Locale, Dict> = {
         },
         fallback: "لو البوت معرفش الإجابة، يعمل إيه؟",
         fallbackOptions: {
-          handover: "يحول لموظف",
+          handover: "تحويل لموظف بشري",
           collect: "ياخد رقم العميل ويتواصل لاحقًا",
           apologize: "يعتذر بأدب",
         },
@@ -237,20 +297,48 @@ export const translations: Record<Locale, Dict> = {
       planLabel: "Selected plan",
       steps: {
         business: "Business info",
+        operations: "Hours & payment",
         knowledge: "Knowledge base",
         behavior: "Bot behavior",
         review: "Review",
       },
       fields: {
         businessName: "Business name",
-        businessNamePh: "e.g. Sunshine Restaurant",
+        businessNamePh: "e.g. El Zawaq Restaurant",
         businessType: "Business type",
         businessTypePh: "Restaurant, clinic, clothing store...",
         goal: "Primary goal of the bot",
         goalPh: "Answer FAQs, book appointments, sell products...",
+        workingHours: "Working hours",
+        workingHoursPh: "e.g. 10am - 12am daily (closed Fri)",
+        location: "Address / location",
+        locationPh: "e.g. Mohandessin, Arab League Street",
+        paymentMethods: "Accepted payment methods",
+        paymentMethodsHint: "Select every method you accept",
+        paymentOptions: {
+          cash: "Cash",
+          visa: "Visa / Mastercard",
+          instapay: "InstaPay",
+          fawry: "Fawry",
+          wallet: "Mobile wallet",
+          bank: "Bank transfer",
+        },
         knowledge: "Knowledge base data",
         knowledgePh:
-          "Anything the bot should know — prices, services, policies, addresses, contact numbers...",
+          "Anything the bot should know — services, offers, branch addresses, website links, contact info...",
+        policy: "Business policies (cancellation / return / booking)",
+        policyPh: "e.g. Free cancellation up to 1 hour before, then 50% fee...",
+        productsServices: "Products / services",
+        productsServicesHint:
+          "List your main products or services with prices — the bot will use them when answering",
+        productAdd: "+ Add product / service",
+        productName: "Name",
+        productNamePh: "e.g. Margherita Pizza",
+        productPrice: "Price",
+        productPricePh: "e.g. 150 EGP",
+        productDesc: "Short description",
+        productDescPh: "Ingredients, sizes, extra details...",
+        remove: "Remove",
         files: "Upload files (PDF, Word) — optional",
         filesHint:
           "We'll auto-extract the text from your files and add it to the knowledge base",

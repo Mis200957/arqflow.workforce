@@ -101,6 +101,6 @@ export const PLANS: Plan[] = [
 export const getPlan = (id: string | null | undefined): Plan | undefined =>
   PLANS.find((p) => p.id === id);
 
-export const WHATSAPP_NUMBER = "201090220773";
+export const WHATSAPP_NUMBER = "201029168056";
 export const WEBHOOK_URL =
   "https://bc1b1373.kube-ops.com/webhook/ai_workforce_factory_webhook";
