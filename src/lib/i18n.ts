@@ -213,7 +213,7 @@ export const translations: Record<Locale, Dict> = {
           collect: "ياخد رقم العميل ويتواصل لاحقًا",
           apologize: "يعتذر بأدب",
         },
-        contact: "رقم التواصل الأساسي",
+        contact: "رقم التواصل الأساسي (الرقم اللي البوت هيرد منه)",
         contactPh: "+20 1XX XXX XXXX",
       },
       preview: {
