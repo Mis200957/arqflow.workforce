@@ -40,6 +40,7 @@ type Dict = {
       knowledge: string;
       behavior: string;
       review: string;
+      payment: string;
     };
     fields: {
       businessName: string;
@@ -88,9 +89,41 @@ type Dict = {
       contactPh: string;
     };
     preview: { heading: string; msg: (name: string) => string };
-    success: { heading: string; msg: string };
+    payment: {
+      heading: string;
+      sub: string;
+      amountLabel: string;
+      breakdown: (setup: number, monthly: number) => string;
+      methodLabel: string;
+      transferTo: string;
+      copy: string;
+      copied: string;
+      txnLabel: string;
+      txnPh: string;
+      txnHint: string;
+      screenshotLabel: string;
+      screenshotHint: string;
+      screenshotChosen: string;
+      changeFile: string;
+      confirm: string;
+      confirming: string;
+      errors: {
+        method: string;
+        txnRequired: string;
+        txnLength: string;
+        screenshot: string;
+        screenshotType: string;
+      };
+    };
+    success: {
+      heading: string;
+      msg: string;
+      orderIdLabel: string;
+      whatsappBtn: string;
+    };
     errors: { required: string; invalidPhone: string; submitFailed: string };
     whatsapp: (plan: string, id: string) => string;
+    whatsappPaid: (plan: string, id: string) => string;
   };
   footer: { tagline: string; rights: string };
 };
@@ -159,6 +192,7 @@ export const translations: Record<Locale, Dict> = {
         knowledge: "قاعدة المعرفة",
         behavior: "طريقة الرد",
         review: "مراجعة",
+        payment: "الدفع",
       },
       fields: {
         businessName: "اسم النشاط",
@@ -221,9 +255,38 @@ export const translations: Record<Locale, Dict> = {
         msg: (name: string) =>
           `أهلاً بيك في ${name || "نشاطك"} 👋 أنا مساعدك الذكي، أقدر أساعدك في إيه النهارده؟`,
       },
+      payment: {
+        heading: "تأكيد الدفع",
+        sub: "حول المبلغ على إحدى الوسيلتين، وادخل رقم العملية وارفع سكرين شوت للتحويل",
+        amountLabel: "المبلغ المطلوب",
+        breakdown: (setup: number, monthly: number) =>
+          `رسوم إعداد ${setup.toLocaleString("ar-EG")} + شهر صيانة ${monthly.toLocaleString("ar-EG")}`,
+        methodLabel: "اختار طريقة التحويل",
+        transferTo: "حوّل على الرقم",
+        copy: "نسخ",
+        copied: "تم النسخ ✓",
+        txnLabel: "رقم العملية (12 رقم)",
+        txnPh: "مثال: 123456789012",
+        txnHint: "هتلاقي الرقم في رسالة تأكيد التحويل من التطبيق",
+        screenshotLabel: "سكرين شوت التحويل",
+        screenshotHint: "صورة توضح المبلغ ورقم العملية والتاريخ",
+        screenshotChosen: "تم اختيار الصورة",
+        changeFile: "تغيير",
+        confirm: "إرسال وتأكيد الدفع",
+        confirming: "جاري التأكيد...",
+        errors: {
+          method: "اختار طريقة الدفع",
+          txnRequired: "ادخل رقم العملية",
+          txnLength: "رقم العملية لازم يكون 12 رقم بالظبط",
+          screenshot: "ارفع سكرين شوت التحويل",
+          screenshotType: "الملف لازم يكون صورة",
+        },
+      },
       success: {
-        heading: "تم استلام بياناتك ✅",
-        msg: "هنحولك دلوقتي على واتساب علشان نكمل الدفع والتفعيل.",
+        heading: "تم تقديم طلبك بنجاح ✅",
+        msg: "هنراجع البيانات والدفع ونبدأ في تشغيل البوت. سجل رقم الطلب اللي تحت وتواصل معانا على واتساب لتأكيد بدء التشغيل.",
+        orderIdLabel: "رقم الطلب",
+        whatsappBtn: "تواصل معانا على واتساب",
       },
       errors: {
         required: "ده حقل مطلوب",
@@ -232,6 +295,8 @@ export const translations: Record<Locale, Dict> = {
       },
       whatsapp: (plan: string, id: string) =>
         `أنا مليت الفورم الخاصة بخطة ${plan}، رقم الطلب بتاعي هو ${id}. ابدأ في تشغيل البوت.`,
+      whatsappPaid: (plan: string, id: string) =>
+        `أنا مليت الفورم الخاصة بالخطة ${plan} ورقم الطلب بتاعي ${id} ودفعت المبلغ. ابدأ في تشغيل البوت`,
     },
     footer: {
       tagline: "بوتات واتساب ذكية للأعمال المصرية",
@@ -301,6 +366,7 @@ export const translations: Record<Locale, Dict> = {
         knowledge: "Knowledge base",
         behavior: "Bot behavior",
         review: "Review",
+        payment: "Payment",
       },
       fields: {
         businessName: "Business name",
@@ -364,9 +430,38 @@ export const translations: Record<Locale, Dict> = {
         msg: (name: string) =>
           `Welcome to ${name || "your business"} 👋 I'm your AI assistant — how can I help you today?`,
       },
+      payment: {
+        heading: "Confirm your payment",
+        sub: "Transfer the amount via one of the methods below, then enter the transaction ID and upload a screenshot.",
+        amountLabel: "Amount due",
+        breakdown: (setup: number, monthly: number) =>
+          `Setup ${setup.toLocaleString("en-US")} + 1st month ${monthly.toLocaleString("en-US")}`,
+        methodLabel: "Choose a transfer method",
+        transferTo: "Transfer to",
+        copy: "Copy",
+        copied: "Copied ✓",
+        txnLabel: "Transaction ID (12 digits)",
+        txnPh: "e.g. 123456789012",
+        txnHint: "You'll find it in the confirmation SMS / app message",
+        screenshotLabel: "Transfer screenshot",
+        screenshotHint: "An image showing the amount, transaction ID, and date",
+        screenshotChosen: "Image selected",
+        changeFile: "Change",
+        confirm: "Submit & confirm payment",
+        confirming: "Confirming...",
+        errors: {
+          method: "Please choose a payment method",
+          txnRequired: "Enter the transaction ID",
+          txnLength: "Transaction ID must be exactly 12 digits",
+          screenshot: "Please upload the transfer screenshot",
+          screenshotType: "File must be an image",
+        },
+      },
       success: {
-        heading: "Submitted ✅",
-        msg: "We're redirecting you to WhatsApp now to finalize payment and activation.",
+        heading: "Order submitted ✅",
+        msg: "We'll review the details and payment, then start activating your bot. Save your order ID below and reach out on WhatsApp to confirm activation.",
+        orderIdLabel: "Order ID",
+        whatsappBtn: "Contact us on WhatsApp",
       },
       errors: {
         required: "This field is required",
@@ -375,6 +470,8 @@ export const translations: Record<Locale, Dict> = {
       },
       whatsapp: (plan: string, id: string) =>
         `Hi! I filled the form for the ${plan} plan. My order ID is ${id}. Please start activating the bot.`,
+      whatsappPaid: (plan: string, id: string) =>
+        `Hi! I filled the form for the ${plan} plan, my order ID is ${id}, and I've paid the amount. Please start activating the bot.`,
     },
     footer: {
       tagline: "Smart WhatsApp bots for Egyptian businesses",

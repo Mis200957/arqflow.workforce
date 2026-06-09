@@ -1,4 +1,4 @@
-export type PlanId = "starter" | "business" | "enterprise";
+export type PlanId = "basic" | "business" | "enterprise";
 
 export type Plan = {
   id: PlanId;
@@ -13,7 +13,7 @@ export type Plan = {
 
 export const PLANS: Plan[] = [
   {
-    id: "starter",
+    id: "basic",
     name: { ar: "أساسي", en: "Starter" },
     tagline: {
       ar: "للمحلات والعيادات اللي محتاجة رد تلقائي بسيط ومحترم",
@@ -101,6 +101,20 @@ export const PLANS: Plan[] = [
 export const getPlan = (id: string | null | undefined): Plan | undefined =>
   PLANS.find((p) => p.id === id);
 
+export const planTotal = (p: Plan): number => p.setupFee + p.monthlyFee;
+
+export type PaymentChannel = "wepay" | "instapay";
+
+export const PAYMENT_ACCOUNTS: Record<
+  PaymentChannel,
+  { label: { ar: string; en: string }; number: string }
+> = {
+  wepay: { label: { ar: "WePay", en: "WePay" }, number: "01559041894" },
+  instapay: { label: { ar: "InstaPay", en: "InstaPay" }, number: "01029168056" },
+};
+
 export const WHATSAPP_NUMBER = "201029168056";
 export const WEBHOOK_URL =
   "https://bc1b1373.kube-ops.com/webhook/ai_workforce_factory_webhook";
+export const PAYMENT_WEBHOOK_URL =
+  "https://bc1b1373.kube-ops.com/webhook/ai_workforce_payment_webhook";

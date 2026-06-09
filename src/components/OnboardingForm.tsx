@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "./AppProvider";
-import { Plan, WEBHOOK_URL, WHATSAPP_NUMBER } from "@/lib/plans";
+import {
+  Plan,
+  PaymentChannel,
+  PAYMENT_ACCOUNTS,
+  PAYMENT_WEBHOOK_URL,
+  WEBHOOK_URL,
+  planTotal,
+} from "@/lib/plans";
 import { generateClientId } from "@/lib/clientId";
 import { extractTextFromFile, ExtractedFile } from "@/lib/fileExtract";
 
@@ -53,6 +60,7 @@ const STEP_KEYS = [
   "knowledge",
   "behavior",
   "review",
+  "payment",
 ] as const;
 
 const PAYMENT_OPTS: PaymentMethod[] = [
@@ -64,6 +72,8 @@ const PAYMENT_OPTS: PaymentMethod[] = [
   "bank",
 ];
 
+const PAY_STEP_INDEX = 5;
+
 export function OnboardingForm({ plan }: { plan: Plan }) {
   const { t, locale } = useApp();
   const router = useRouter();
@@ -73,10 +83,23 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+
+  // Payment state
+  const [payChannel, setPayChannel] = useState<PaymentChannel | null>(null);
+  const [txnId, setTxnId] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotB64, setScreenshotB64] = useState<string>("");
+  const [payErrors, setPayErrors] = useState<{
+    method?: string;
+    txn?: string;
+    screenshot?: string;
+  }>({});
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const totalSteps = STEP_KEYS.length;
+  const totalAmount = planTotal(plan);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setState((s) => ({ ...s, [k]: v }));
@@ -137,6 +160,18 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
     return Object.keys(e).length === 0;
   };
 
+  const validatePayment = (): boolean => {
+    const e: typeof payErrors = {};
+    if (!payChannel) e.method = t.form.payment.errors.method;
+    if (!txnId.trim()) e.txn = t.form.payment.errors.txnRequired;
+    else if (!/^\d{12}$/.test(txnId.trim()))
+      e.txn = t.form.payment.errors.txnLength;
+    if (!screenshotB64 || !screenshotFile)
+      e.screenshot = t.form.payment.errors.screenshot;
+    setPayErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const next = () => {
     if (validateStep(step)) setStep((s) => Math.min(s + 1, totalSteps - 1));
   };
@@ -163,16 +198,28 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
   const removeFile = (name: string) =>
     setFiles((prev) => prev.filter((f) => f.name !== name));
 
-  const submit = async () => {
-    if (!validateStep(3)) {
-      setStep(3);
+  const onScreenshot = async (f: File | null) => {
+    setPayErrors((e) => ({ ...e, screenshot: undefined }));
+    if (!f) {
+      setScreenshotFile(null);
+      setScreenshotB64("");
       return;
     }
-    setSubmitting(true);
-    setSubmitError(null);
-    const clientId = generateClientId();
-    const planName = plan.name[locale];
+    if (!f.type.startsWith("image/")) {
+      setScreenshotFile(null);
+      setScreenshotB64("");
+      setPayErrors((e) => ({
+        ...e,
+        screenshot: t.form.payment.errors.screenshotType,
+      }));
+      return;
+    }
+    const b64 = await fileToBase64(f);
+    setScreenshotFile(f);
+    setScreenshotB64(b64);
+  };
 
+  const buildBasePayload = (clientId: string) => {
     const filesKnowledge = files
       .map((f) => `--- ${f.name} ---\n${f.text}`)
       .join("\n\n");
@@ -188,7 +235,7 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
       }))
       .filter((p) => p.name || p.price || p.description);
 
-    const payload = {
+    return {
       client_id: clientId,
       submitted_at: new Date().toISOString(),
       locale,
@@ -212,21 +259,54 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
         text: f.text,
       })),
     };
+  };
+
+  const submitPayment = async () => {
+    if (!validatePayment() || !payChannel) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    const clientId = generateClientId();
+
+    const account = PAYMENT_ACCOUNTS[payChannel];
+    const trimmedTxn = txnId.trim();
+
+    const paymentInfo = {
+      client_id: clientId,
+      plan_id: plan.id,
+      amount: totalAmount,
+      payment_method: payChannel,
+      payment_number: account.number,
+      transaction_id: trimmedTxn,
+      screenshot_base64: screenshotB64,
+    };
+
+    const formPayload = {
+      ...buildBasePayload(clientId),
+      payment: {
+        method: payChannel,
+        number: account.number,
+        amount: totalAmount,
+        transaction_id: trimmedTxn,
+      },
+    };
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const [formRes, payRes] = await Promise.all([
+        fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formPayload),
+        }),
+        fetch(PAYMENT_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(paymentInfo),
+        }),
+      ]);
+      if (!formRes.ok) throw new Error(`form HTTP ${formRes.status}`);
+      if (!payRes.ok) throw new Error(`payment HTTP ${payRes.status}`);
 
-      const waMsg = encodeURIComponent(t.form.whatsapp(planName, clientId));
-      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`;
       router.replace(`/onboarding/success?id=${clientId}&plan=${plan.id}`);
-      setTimeout(() => {
-        window.location.href = waUrl;
-      }, 200);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "submit failed";
       setSubmitError(`${t.form.errors.submitFailed} (${msg})`);
@@ -238,6 +318,8 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
     () => Math.round(((step + 1) / totalSteps) * 100),
     [step, totalSteps],
   );
+
+  const isPaymentStep = step === PAY_STEP_INDEX;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 md:py-14">
@@ -252,9 +334,11 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
           </span>
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-          {t.form.heading}
+          {isPaymentStep ? t.form.payment.heading : t.form.heading}
         </h1>
-        <p className="mt-2 text-muted">{t.form.sub}</p>
+        <p className="mt-2 text-muted">
+          {isPaymentStep ? t.form.payment.sub : t.form.sub}
+        </p>
 
         <div className="mt-6 h-2 rounded-full bg-elev border border-app overflow-hidden">
           <div
@@ -262,7 +346,7 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="mt-3 grid grid-cols-5 gap-2 text-xs">
+        <div className="mt-3 grid grid-cols-6 gap-1 text-[11px] sm:text-xs">
           {STEP_KEYS.map((k, i) => (
             <div
               key={k}
@@ -315,6 +399,27 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
             t={t}
           />
         )}
+        {step === 5 && (
+          <Step6Payment
+            plan={plan}
+            amount={totalAmount}
+            channel={payChannel}
+            setChannel={(c) => {
+              setPayChannel(c);
+              setPayErrors((e) => ({ ...e, method: undefined }));
+            }}
+            txnId={txnId}
+            setTxnId={(v) => {
+              setTxnId(v);
+              setPayErrors((e) => ({ ...e, txn: undefined }));
+            }}
+            screenshotFile={screenshotFile}
+            onScreenshot={onScreenshot}
+            errors={payErrors}
+            locale={locale}
+            t={t}
+          />
+        )}
 
         {submitError && (
           <p className="mt-4 text-sm text-red-500">{submitError}</p>
@@ -329,18 +434,18 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
           >
             {t.form.previous}
           </button>
-          {step < totalSteps - 1 ? (
+          {!isPaymentStep ? (
             <button type="button" onClick={next} className="btn-primary">
               {t.form.next}
             </button>
           ) : (
             <button
               type="button"
-              onClick={submit}
+              onClick={submitPayment}
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? t.form.submitting : t.form.submit}
+              {submitting ? t.form.payment.confirming : t.form.payment.confirm}
             </button>
           )}
         </div>
@@ -774,6 +879,181 @@ function Step5Review({
   );
 }
 
+function Step6Payment({
+  plan,
+  amount,
+  channel,
+  setChannel,
+  txnId,
+  setTxnId,
+  screenshotFile,
+  onScreenshot,
+  errors,
+  locale,
+  t,
+}: {
+  plan: Plan;
+  amount: number;
+  channel: PaymentChannel | null;
+  setChannel: (c: PaymentChannel) => void;
+  txnId: string;
+  setTxnId: (v: string) => void;
+  screenshotFile: File | null;
+  onScreenshot: (f: File | null) => void;
+  errors: { method?: string; txn?: string; screenshot?: string };
+  locale: "ar" | "en";
+  t: ReturnType<typeof useApp>["t"];
+}) {
+  const [copiedKey, setCopiedKey] = useState<PaymentChannel | null>(null);
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US").format(n);
+
+  const copy = async (key: PaymentChannel, num: string) => {
+    try {
+      await navigator.clipboard.writeText(num);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    } catch {
+      // ignore
+    }
+  };
+
+  const channels: PaymentChannel[] = ["wepay", "instapay"];
+
+  return (
+    <div className="space-y-6">
+      {/* Amount banner */}
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-[#2A6072] to-[#6BA0AC] text-white">
+        <p className="text-xs opacity-80 uppercase tracking-wider">
+          {t.form.payment.amountLabel}
+        </p>
+        <p className="mt-1 text-4xl font-bold tracking-tight">
+          {fmt(amount)} <span className="text-lg font-medium opacity-80">EGP</span>
+        </p>
+        <p className="mt-2 text-sm opacity-80">
+          {t.form.payment.breakdown(plan.setupFee, plan.monthlyFee)} · {plan.name[locale]}
+        </p>
+      </div>
+
+      {/* Method picker */}
+      <div>
+        <label className="text-sm font-medium block mb-3">
+          {t.form.payment.methodLabel}
+        </label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {channels.map((c) => {
+            const acc = PAYMENT_ACCOUNTS[c];
+            const selected = channel === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setChannel(c)}
+                className={`text-start p-4 rounded-xl border transition relative ${
+                  selected
+                    ? "border-[#6BA0AC] bg-[#6BA0AC]/15 ring-2 ring-[#6BA0AC]"
+                    : "border-app hover:bg-elev"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{acc.label[locale]}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {t.form.payment.transferTo}
+                    </p>
+                    <p
+                      dir="ltr"
+                      className="mt-1 font-mono text-lg font-bold tracking-wide"
+                    >
+                      {acc.number}
+                    </p>
+                  </div>
+                  {selected && <CheckCircle />}
+                </div>
+                <div
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#2A6072] dark:text-[#6BA0AC] hover:underline"
+                  role="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copy(c, acc.number);
+                  }}
+                >
+                  {copiedKey === c ? t.form.payment.copied : t.form.payment.copy}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {errors.method && (
+          <p className="mt-2 text-xs text-red-500">{errors.method}</p>
+        )}
+      </div>
+
+      {/* Transaction ID */}
+      <Field label={t.form.payment.txnLabel} error={errors.txn}>
+        <input
+          className="input-base font-mono tracking-wider"
+          dir="ltr"
+          inputMode="numeric"
+          maxLength={12}
+          placeholder={t.form.payment.txnPh}
+          value={txnId}
+          onChange={(e) => setTxnId(e.target.value.replace(/\D/g, "").slice(0, 12))}
+        />
+        <p className="mt-1 text-xs text-muted">{t.form.payment.txnHint}</p>
+      </Field>
+
+      {/* Screenshot */}
+      <div>
+        <label className="text-sm font-medium">
+          {t.form.payment.screenshotLabel}
+        </label>
+        <p className="text-xs text-muted mt-1">{t.form.payment.screenshotHint}</p>
+
+        {!screenshotFile ? (
+          <label className="mt-3 block cursor-pointer">
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => onScreenshot(e.target.files?.[0] ?? null)}
+            />
+            <div className="border-2 border-dashed border-app rounded-xl p-6 text-center hover:bg-elev transition">
+              <UploadIcon />
+              <p className="mt-2 text-sm font-medium">PNG, JPG, WEBP</p>
+            </div>
+          </label>
+        ) : (
+          <div className="mt-3 p-3 rounded-xl border border-app bg-elev flex items-center justify-between gap-3 text-sm">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{screenshotFile.name}</p>
+              <p className="text-xs text-muted">
+                {(screenshotFile.size / 1024).toFixed(1)} KB ·{" "}
+                <span className="text-[#2A6072] dark:text-[#6BA0AC]">
+                  ✓ {t.form.payment.screenshotChosen}
+                </span>
+              </p>
+            </div>
+            <label className="btn-outline text-xs cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => onScreenshot(e.target.files?.[0] ?? null)}
+              />
+              {t.form.payment.changeFile}
+            </label>
+          </div>
+        )}
+
+        {errors.screenshot && (
+          <p className="mt-2 text-xs text-red-500">{errors.screenshot}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* -------------------- helpers -------------------- */
 
 function Field({
@@ -836,4 +1116,28 @@ function UploadIcon() {
       <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   );
+}
+
+function CheckCircle() {
+  return (
+    <span className="w-7 h-7 rounded-full bg-[#6BA0AC] text-white grid place-items-center shrink-0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    </span>
+  );
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the "data:image/...;base64," prefix
+      const idx = result.indexOf(",");
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
 }
