@@ -67,28 +67,20 @@ type Dict = {
       knowledgePh: string;
       policy: string;
       policyPh: string;
-      productsServices: string;
-      productsServicesHint: string;
-      productAdd: string;
-      productName: string;
-      productNamePh: string;
-      productPrice: string;
-      productPricePh: string;
-      productDesc: string;
-      productDescPh: string;
-      remove: string;
       files: string;
       filesHint: string;
       extracting: string;
       extracted: string;
       tone: string;
-      toneOptions: { formal: string; friendly: string; egyptian: string };
-      fallback: string;
-      fallbackOptions: { handover: string; collect: string; apologize: string };
+      toneOptions: { formal: string; friendly: string; professional: string };
       contact: string;
+      contactHint: string;
       contactPh: string;
     };
-    preview: { heading: string; msg: (name: string) => string };
+    preview: {
+      heading: string;
+      msg: (name: string, tone: "formal" | "friendly" | "professional") => string;
+    };
     payment: {
       heading: string;
       sub: string;
@@ -217,20 +209,9 @@ export const translations: Record<Locale, Dict> = {
         },
         knowledge: "بيانات قاعدة المعرفة",
         knowledgePh:
-          "اكتب أي معلومات عن نشاطك — خدمات، عروض، عناوين فروع، روابط مواقع، تفاصيل تواصل...",
+          "اكتب أي معلومات عن نشاطك — خدمات، عروض، أسعار، عناوين فروع، روابط مواقع، تفاصيل تواصل...",
         policy: "سياسات النشاط (إلغاء / استرجاع / حجز)",
         policyPh: "مثال: الإلغاء قبل ساعة من الموعد مجاني، بعد كده 50% خصم...",
-        productsServices: "المنتجات / الخدمات",
-        productsServicesHint:
-          "اكتب أهم المنتجات أو الخدمات اللي بتقدمها بسعرها — البوت هيستخدمها في الرد",
-        productAdd: "+ إضافة منتج / خدمة",
-        productName: "الاسم",
-        productNamePh: "مثال: بيتزا مارجريتا",
-        productPrice: "السعر",
-        productPricePh: "مثال: 150 جنيه",
-        productDesc: "وصف مختصر",
-        productDescPh: "مكونات، أحجام، تفاصيل إضافية...",
-        remove: "حذف",
         files: "ارفع ملفات (PDF, Word) — اختياري",
         filesHint: "هنستخرج النص من الملفات أوتوماتيك ونضيفه لقاعدة المعرفة",
         extracting: "جاري استخراج النص...",
@@ -239,21 +220,22 @@ export const translations: Record<Locale, Dict> = {
         toneOptions: {
           formal: "رسمي",
           friendly: "ودود",
-          egyptian: "مصري عامي",
-        },
-        fallback: "لو البوت معرفش الإجابة، يعمل إيه؟",
-        fallbackOptions: {
-          handover: "تحويل لموظف بشري",
-          collect: "ياخد رقم العميل ويتواصل لاحقًا",
-          apologize: "يعتذر بأدب",
+          professional: "احترافي",
         },
         contact: "رقم التواصل الأساسي (الرقم اللي البوت هيرد منه)",
-        contactPh: "+20 1XX XXX XXXX",
+        contactHint: "ابدأ برمز الدولة بدون + (مثال: 20 لمصر) — أرقام فقط",
+        contactPh: "201090220773",
       },
       preview: {
         heading: "كده هيرحب البوت بعملاؤك",
-        msg: (name: string) =>
-          `أهلاً بيك في ${name || "نشاطك"} 👋 أنا مساعدك الذكي، أقدر أساعدك في إيه النهارده؟`,
+        msg: (name: string, tone: "formal" | "friendly" | "professional") => {
+          const biz = name || "نشاطك";
+          if (tone === "formal")
+            return `مرحبًا بكم في ${biz}. كيف يمكننا خدمتكم اليوم؟`;
+          if (tone === "professional")
+            return `أهلًا بحضرتك في ${biz}. حضرتك محتاج أي خدمة؟ هساعدك على طول.`;
+          return `أهلاً بيك في ${biz} 👋 إيه اللي أقدر أساعدك بيه النهارده؟`;
+        },
       },
       payment: {
         heading: "تأكيد الدفع",
@@ -391,20 +373,9 @@ export const translations: Record<Locale, Dict> = {
         },
         knowledge: "Knowledge base data",
         knowledgePh:
-          "Anything the bot should know — services, offers, branch addresses, website links, contact info...",
+          "Anything the bot should know — services, offers, prices, branch addresses, website links, contact info...",
         policy: "Business policies (cancellation / return / booking)",
         policyPh: "e.g. Free cancellation up to 1 hour before, then 50% fee...",
-        productsServices: "Products / services",
-        productsServicesHint:
-          "List your main products or services with prices — the bot will use them when answering",
-        productAdd: "+ Add product / service",
-        productName: "Name",
-        productNamePh: "e.g. Margherita Pizza",
-        productPrice: "Price",
-        productPricePh: "e.g. 150 EGP",
-        productDesc: "Short description",
-        productDescPh: "Ingredients, sizes, extra details...",
-        remove: "Remove",
         files: "Upload files (PDF, Word) — optional",
         filesHint:
           "We'll auto-extract the text from your files and add it to the knowledge base",
@@ -414,21 +385,23 @@ export const translations: Record<Locale, Dict> = {
         toneOptions: {
           formal: "Formal",
           friendly: "Friendly",
-          egyptian: "Egyptian Arabic",
+          professional: "Professional",
         },
-        fallback: "If the bot doesn't know the answer, what should it do?",
-        fallbackOptions: {
-          handover: "Hand over to a human",
-          collect: "Take the customer's number for follow-up",
-          apologize: "Politely apologize",
-        },
-        contact: "Primary contact number",
-        contactPh: "+20 1XX XXX XXXX",
+        contact: "Primary contact number (the number the bot replies from)",
+        contactHint:
+          "Start with the country code without + (e.g. 20 for Egypt) — digits only",
+        contactPh: "201090220773",
       },
       preview: {
         heading: "This is how the bot will greet your customers",
-        msg: (name: string) =>
-          `Welcome to ${name || "your business"} 👋 I'm your AI assistant — how can I help you today?`,
+        msg: (name: string, tone: "formal" | "friendly" | "professional") => {
+          const biz = name || "your business";
+          if (tone === "formal")
+            return `Welcome to ${biz}. How may we assist you today?`;
+          if (tone === "professional")
+            return `Hello and welcome to ${biz}. How can I help you today?`;
+          return `Hey 👋 welcome to ${biz}! What can I help you with?`;
+        },
       },
       payment: {
         heading: "Confirm your payment",

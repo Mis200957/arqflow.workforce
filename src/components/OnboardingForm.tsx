@@ -22,7 +22,7 @@ type PaymentMethod =
   | "wallet"
   | "bank";
 
-type Product = { name: string; price: string; description: string };
+type Tone = "formal" | "friendly" | "professional";
 
 type FormState = {
   businessName: string;
@@ -33,9 +33,7 @@ type FormState = {
   paymentMethods: PaymentMethod[];
   knowledge: string;
   policy: string;
-  products: Product[];
-  tone: "formal" | "friendly" | "egyptian";
-  fallback: "handover" | "collect" | "apologize";
+  tone: Tone;
   contact: string;
 };
 
@@ -48,11 +46,12 @@ const INITIAL: FormState = {
   paymentMethods: ["cash"],
   knowledge: "",
   policy: "",
-  products: [],
-  tone: "egyptian",
-  fallback: "handover",
+  tone: "friendly",
   contact: "",
 };
+
+// Field name kept in the JSON payload for backward compatibility with n8n
+const DEFAULT_FALLBACK_BEHAVIOR = "handover";
 
 const STEP_KEYS = [
   "business",
@@ -115,24 +114,6 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
     }));
   };
 
-  const addProduct = () =>
-    setState((s) => ({
-      ...s,
-      products: [...s.products, { name: "", price: "", description: "" }],
-    }));
-
-  const updateProduct = (i: number, patch: Partial<Product>) =>
-    setState((s) => ({
-      ...s,
-      products: s.products.map((p, idx) => (idx === i ? { ...p, ...patch } : p)),
-    }));
-
-  const removeProduct = (i: number) =>
-    setState((s) => ({
-      ...s,
-      products: s.products.filter((_, idx) => idx !== i),
-    }));
-
   const validateStep = (i: number): boolean => {
     const e: Partial<Record<keyof FormState, string>> = {};
     if (i === 0) {
@@ -145,15 +126,13 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
       if (state.paymentMethods.length === 0)
         e.paymentMethods = t.form.errors.required;
     } else if (i === 2) {
-      if (
-        !state.knowledge.trim() &&
-        files.length === 0 &&
-        state.products.length === 0
-      )
+      if (!state.knowledge.trim() && files.length === 0)
         e.knowledge = t.form.errors.required;
     } else if (i === 3) {
-      if (!state.contact.trim()) e.contact = t.form.errors.required;
-      else if (!/^[+\d][\d\s\-()]{6,}$/.test(state.contact.trim()))
+      const phone = state.contact.trim();
+      if (!phone) e.contact = t.form.errors.required;
+      // E.164 without "+": 1-3 digit country code + subscriber number, 8-15 digits total
+      else if (!/^[1-9]\d{7,14}$/.test(phone))
         e.contact = t.form.errors.invalidPhone;
     }
     setErrors(e);
@@ -227,14 +206,6 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
       .filter(Boolean)
       .join("\n\n");
 
-    const cleanProducts = state.products
-      .map((p) => ({
-        name: p.name.trim(),
-        price: p.price.trim(),
-        description: p.description.trim(),
-      }))
-      .filter((p) => p.name || p.price || p.description);
-
     return {
       client_id: clientId,
       submitted_at: new Date().toISOString(),
@@ -245,13 +216,17 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
       primary_goal: state.goal.trim(),
       knowledge_base: combinedKnowledge,
       tone_of_voice: state.tone,
-      fallback_behavior: state.fallback,
+      fallback_behavior: DEFAULT_FALLBACK_BEHAVIOR,
       contact_number: state.contact.trim(),
       working_hours: state.workingHours.trim(),
       location: state.location.trim(),
       payment_methods: state.paymentMethods,
       policy: state.policy.trim(),
-      products_services: cleanProducts,
+      products_services: [] as Array<{
+        name: string;
+        price: string;
+        description: string;
+      }>,
       uploaded_files: files.map((f) => ({
         name: f.name,
         type: f.type,
@@ -381,9 +356,6 @@ export function OnboardingForm({ plan }: { plan: Plan }) {
             removeFile={removeFile}
             extracting={extracting}
             extractError={extractError}
-            addProduct={addProduct}
-            updateProduct={updateProduct}
-            removeProduct={removeProduct}
             t={t}
           />
         )}
@@ -564,9 +536,6 @@ function Step3Knowledge({
   removeFile,
   extracting,
   extractError,
-  addProduct,
-  updateProduct,
-  removeProduct,
   t,
 }: StepCommonProps & {
   files: ExtractedFile[];
@@ -574,9 +543,6 @@ function Step3Knowledge({
   removeFile: (name: string) => void;
   extracting: boolean;
   extractError: string | null;
-  addProduct: () => void;
-  updateProduct: (i: number, patch: Partial<Product>) => void;
-  removeProduct: (i: number) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -597,67 +563,6 @@ function Step3Knowledge({
           onChange={(e) => update("policy", e.target.value)}
         />
       </Field>
-
-      <div>
-        <label className="text-sm font-medium block">
-          {t.form.fields.productsServices}
-        </label>
-        <p className="text-xs text-muted mt-1">
-          {t.form.fields.productsServicesHint}
-        </p>
-
-        <div className="mt-3 space-y-3">
-          {state.products.map((p, i) => (
-            <div
-              key={i}
-              className="p-3 rounded-xl border border-app bg-elev space-y-2"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  className="input-base"
-                  placeholder={t.form.fields.productNamePh}
-                  aria-label={t.form.fields.productName}
-                  value={p.name}
-                  onChange={(e) => updateProduct(i, { name: e.target.value })}
-                />
-                <input
-                  className="input-base"
-                  placeholder={t.form.fields.productPricePh}
-                  aria-label={t.form.fields.productPrice}
-                  value={p.price}
-                  onChange={(e) => updateProduct(i, { price: e.target.value })}
-                />
-              </div>
-              <input
-                className="input-base"
-                placeholder={t.form.fields.productDescPh}
-                aria-label={t.form.fields.productDesc}
-                value={p.description}
-                onChange={(e) =>
-                  updateProduct(i, { description: e.target.value })
-                }
-              />
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => removeProduct(i)}
-                  className="text-xs text-muted hover:text-red-500"
-                >
-                  ✕ {t.form.fields.remove}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={addProduct}
-          className="mt-3 btn-outline w-full"
-        >
-          {t.form.fields.productAdd}
-        </button>
-      </div>
 
       <div>
         <label className="text-sm font-medium">{t.form.fields.files}</label>
@@ -725,7 +630,7 @@ function Step4Behavior({ state, update, errors, t }: StepCommonProps) {
           {t.form.fields.tone}
         </label>
         <div className="grid grid-cols-3 gap-2">
-          {(["formal", "friendly", "egyptian"] as const).map((opt) => (
+          {(["formal", "friendly", "professional"] as const).map((opt) => (
             <Chip
               key={opt}
               selected={state.tone === opt}
@@ -735,43 +640,31 @@ function Step4Behavior({ state, update, errors, t }: StepCommonProps) {
             </Chip>
           ))}
         </div>
-      </div>
 
-      <div>
-        <label className="text-sm font-medium block mb-2">
-          {t.form.fields.fallback}
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {(["handover", "collect", "apologize"] as const).map((opt) => (
-            <Chip
-              key={opt}
-              selected={state.fallback === opt}
-              onClick={() => update("fallback", opt)}
-            >
-              {t.form.fields.fallbackOptions[opt]}
-            </Chip>
-          ))}
+        <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-[#2A6072]/10 to-[#6BA0AC]/10 border border-app">
+          <p className="text-xs text-muted mb-2 font-medium">
+            {t.form.preview.heading}
+          </p>
+          <div className="p-3 rounded-lg bg-elev border border-app text-sm">
+            {t.form.preview.msg(state.businessName, state.tone)}
+          </div>
         </div>
       </div>
 
       <Field label={t.form.fields.contact} error={errors.contact}>
         <input
-          className="input-base"
+          className="input-base font-mono tracking-wider"
           dir="ltr"
+          inputMode="numeric"
+          maxLength={15}
           placeholder={t.form.fields.contactPh}
           value={state.contact}
-          onChange={(e) => update("contact", e.target.value)}
+          onChange={(e) =>
+            update("contact", e.target.value.replace(/\D/g, "").slice(0, 15))
+          }
         />
+        <p className="mt-1 text-xs text-muted">{t.form.fields.contactHint}</p>
       </Field>
-
-      <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-[#2A6072]/10 to-[#6BA0AC]/10 border border-app">
-        <p className="text-xs text-muted mb-2 font-medium">
-          {t.form.preview.heading}
-        </p>
-        <div className="p-3 rounded-lg bg-elev border border-app text-sm">
-          {t.form.preview.msg(state.businessName)}
-        </div>
-      </div>
     </div>
   );
 }
@@ -802,7 +695,6 @@ function Step5Review({
     [t.form.fields.location, state.location],
     [t.form.fields.paymentMethods, paymentLabels],
     [t.form.fields.tone, t.form.fields.toneOptions[state.tone]],
-    [t.form.fields.fallback, t.form.fields.fallbackOptions[state.fallback]],
     [t.form.fields.contact, state.contact],
   ];
 
@@ -830,33 +722,6 @@ function Step5Review({
           <p className="mt-2 text-sm text-muted whitespace-pre-wrap">
             {state.policy}
           </p>
-        </details>
-      )}
-
-      {state.products.length > 0 && (
-        <details className="card p-4" open>
-          <summary className="cursor-pointer text-sm font-medium">
-            {t.form.fields.productsServices}{" "}
-            <span className="text-muted">({state.products.length})</span>
-          </summary>
-          <ul className="mt-3 space-y-2 text-sm">
-            {state.products.map((p, i) => (
-              <li
-                key={i}
-                className="p-2 rounded-lg border border-app flex items-start justify-between gap-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{p.name || "—"}</p>
-                  {p.description && (
-                    <p className="text-xs text-muted">{p.description}</p>
-                  )}
-                </div>
-                <span className="shrink-0 text-[#2A6072] dark:text-[#6BA0AC] font-semibold">
-                  {p.price || "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
         </details>
       )}
 
